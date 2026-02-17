@@ -1,19 +1,90 @@
 require('dotenv').config();
 const axios = require('axios');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 /**
- * Web検索APIで情報を検索（GoogleまたはBing対応）
+ * Web検索APIで情報を検索（Google/Bing/Gemini対応）
  * @param {string} query - 検索クエリ
  * @param {number} num - 取得件数
  * @returns {Promise<Array>} 検索結果
  */
 async function searchInformation(query, num = 5) {
-  const searchProvider = process.env.SEARCH_PROVIDER || 'google';
+  const searchProvider = process.env.SEARCH_PROVIDER || 'gemini';
   
-  if (searchProvider === 'bing') {
+  if (searchProvider === 'gemini') {
+    return searchWithGemini(query, num);
+  } else if (searchProvider === 'bing') {
     return searchWithBing(query, num);
   } else {
     return searchWithGoogle(query, num);
+  }
+}
+
+/**
+ * Gemini APIで検索（Grounding with Google Search）
+ */
+async function searchWithGemini(query, num) {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error('Gemini API key not configured');
+    }
+
+    console.log(`[Gemini] Searching: ${query}`);
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash-exp',
+      tools: [{
+        googleSearch: {}
+      }]
+    });
+
+    // Gemini APIで検索プロンプト
+    const prompt = `
+以下の検索クエリに対して、最新の情報を${num}件見つけてください。
+各結果について、タイトル、URL、概要（100文字程度）を提供してください。
+情報は過去1週間以内のものを優先してください。
+
+検索クエリ: ${query}
+
+JSON形式で以下のように返してください：
+[
+  {
+    "title": "記事のタイトル",
+    "url": "https://example.com/article",
+    "snippet": "記事の概要（100文字程度）"
+  }
+]
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    // JSON部分を抽出
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.log('No JSON found in response');
+      return [];
+    }
+
+    const results = JSON.parse(jsonMatch[0]);
+
+    return results.map(item => ({
+      title: item.title,
+      link: item.url,
+      snippet: item.snippet,
+      publishedDate: new Date().toISOString()
+    }));
+
+  } catch (error) {
+    console.error('Gemini Search error:', error.message);
+    if (error.response) {
+      console.error('API Error:', error.response.data);
+    }
+    return [];
   }
 }
 
@@ -80,7 +151,7 @@ async function searchWithBing(query, num) {
         q: query,
         count: num,
         mkt: 'ja-JP',
-        freshness: 'Week' // 過去1週間
+        freshness: 'Week'
       },
       headers: {
         'Ocp-Apim-Subscription-Key': apiKey

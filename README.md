@@ -22,7 +22,9 @@ VTuber活動に役立つ最新情報（オーディション情報、YouTube/X�
 - **Backend**: Node.js + Express.js
 - **Frontend**: Bootstrap 5 + EJS
 - **APIs**: 
-  - **Bing Web Search API**（推奨）または Google Custom Search API
+  - **Gemini API**（推奨・無料）with Grounding
+  - Bing Web Search API（代替）
+  - Google Custom Search API（代替）
   - Google Sheets API
   - Discord Webhooks
 - **Scheduler**: node-cron
@@ -54,10 +56,13 @@ cp .env.example .env
 `.env` ファイルを編集：
 
 ```env
-# Search Provider（bingまたはgoogle）
-SEARCH_PROVIDER=bing
+# Search Provider（gemini/bing/google）
+SEARCH_PROVIDER=gemini
 
-# Bing Web Search API（推奨）
+# Gemini API（推奨・無料）
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Bing Web Search API（オプション）
 BING_API_KEY=your_bing_api_key_here
 
 # Google Custom Search API（オプション）
@@ -81,7 +86,33 @@ CRON_SCHEDULE=0 9 * * 1
 
 ## 🔑 API設定ガイド
 
-### Bing Web Search API（推奨）
+### Gemini API（推奨・完全無料）
+
+**最も簡単で確実な方法です！**
+
+**手順**:
+
+1. **Google AI Studio**: https://aistudio.google.com/app/apikey
+2. Googleアカウントでログイン
+3. **「APIキーを作成」**をクリック
+4. プロジェクトを選択（または「新しいプロジェクトでAPIキーを作成」）
+5. APIキーをコピー
+
+**料金**: 
+- **完全無料**（無料枠: 月15 RPM = 900リクエスト/時間）
+- このシステムでの使用量: 週5クエリ = 約20クエリ/月（無料枠内）
+- **Grounding with Google Search**で最新情報を自動取得
+
+**メリット**:
+- ✅ 完全無料
+- ✅ 大きな無料枠
+- ✅ 課金アカウント不要
+- ✅ Googleアカウントがあればすぐ使える
+- ✅ 最新情報をWeb検索で取得
+
+---
+
+### Bing Web Search API（代替）
 
 Google Custom Search APIで403エラーが出る場合は、Bing Web Search APIを使用してください。
 
