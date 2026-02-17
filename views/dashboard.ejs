@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VTuber情報収集ダッシュボード - WannaV</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-broadcast-tower"></i> WannaV - VTuber情報収集システム
+            </span>
+            <button class="btn btn-light" onclick="collectNow()">
+                <i class="fas fa-sync-alt"></i> 今すぐ収集
+            </button>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- ステータスカード -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-info-circle"></i> システムステータス
+                        </h5>
+                        <p class="mb-1">
+                            <strong>自動実行:</strong> 毎週月曜日 朝9時（JST）
+                        </p>
+                        <p class="mb-0">
+                            <strong>最終収集:</strong> 
+                            <span id="lastCollection">
+                                <%= lastCollectionTime ? new Date(lastCollectionTime).toLocaleString('ja-JP') : '未実行' %>
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 収集データテーブル -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i> 収集した情報（<%= data.length %>件）
+                </h5>
+            </div>
+            <div class="card-body">
+                <% if (data.length === 0) { %>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> 
+                        まだ情報が収集されていません。「今すぐ収集」ボタンをクリックして情報を収集してください。
+                    </div>
+                <% } else { %>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="width: 5%">状態</th>
+                                    <th style="width: 30%">タイトル</th>
+                                    <th style="width: 35%">概要</th>
+                                    <th style="width: 15%">検索クエリ</th>
+                                    <th style="width: 10%">収集日時</th>
+                                    <th style="width: 5%">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% data.forEach(function(item) { %>
+                                    <tr id="row-<%= item.rowIndex %>" class="<%= item.sent ? 'table-success' : '' %>">
+                                        <td class="text-center">
+                                            <% if (item.sent) { %>
+                                                <i class="fas fa-check-circle text-success" title="送信済み"></i>
+                                            <% } else { %>
+                                                <i class="fas fa-circle text-warning" title="未送信"></i>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <a href="<%= item.link %>" target="_blank" class="text-decoration-none">
+                                                <%= item.title %>
+                                                <i class="fas fa-external-link-alt fa-xs"></i>
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <small><%= item.snippet.substring(0, 100) %>...</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary"><%= item.query %></span>
+                                        </td>
+                                        <td>
+                                            <small><%= new Date(item.collectedAt).toLocaleString('ja-JP', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'}) %></small>
+                                        </td>
+                                        <td>
+                                            <% if (!item.sent) { %>
+                                                <button class="btn btn-sm btn-primary" onclick="sendToDiscord(<%= item.rowIndex %>)">
+                                                    <i class="fas fa-paper-plane"></i>
+                                                </button>
+                                            <% } else { %>
+                                                <span class="badge bg-success">送信済</span>
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- 説明カード -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h6 class="card-title"><i class="fas fa-question-circle"></i> 使い方</h6>
+                <ul class="mb-0">
+                    <li>システムは毎週月曜日の朝9時に自動的に情報を収集します</li>
+                    <li>「今すぐ収集」ボタンで手動で情報収集を実行できます</li>
+                    <li>収集した情報は一覧表示され、未送信の情報には黄色い丸印が表示されます</li>
+                    <li>「<i class="fas fa-paper-plane"></i>」ボタンをクリックすると、アクティブな生徒全員のDiscordに送信されます</li>
+                    <li>送信済みの情報は緑色の背景で表示され、再送信できません</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast通知 -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto" id="toast-title">通知</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toast-body"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>
