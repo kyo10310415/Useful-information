@@ -61,7 +61,9 @@ SEARCH_ENGINE_ID=your_search_engine_id_here
 # Google Sheets API (Service Account)
 GOOGLE_SERVICE_ACCOUNT_EMAIL=your-service-account@project.iam.gserviceaccount.com
 GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour private key here\n-----END PRIVATE KEY-----\n"
-SPREADSHEET_ID=1iqrAhNjW8jTvobkur5N_9r9uUWFHCKqrhxM72X5z-iM
+
+# スプレッドシートID（収集データ出力先）
+SPREADSHEET_ID=1ofjmoSr6Qo2hEId7oClBRS-qYxTx75GqF0Ydbu4pO5k
 
 # Server Configuration
 PORT=3000
@@ -132,7 +134,7 @@ Discord Webhook URLは、スプレッドシート「❶RAW_生徒様情報」の
    | `SEARCH_ENGINE_ID` | Search Engine ID (CX) |
    | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Service Account Email |
    | `GOOGLE_PRIVATE_KEY` | Private Key（改行を保持） |
-   | `SPREADSHEET_ID` | `1iqrAhNjW8jTvobkur5N_9r9uUWFHCKqrhxM72X5z-iM` |
+   | `SPREADSHEET_ID` | `1ofjmoSr6Qo2hEId7oClBRS-qYxTx75GqF0Ydbu4pO5k` |
    | `NODE_ENV` | `production` |
    | `CRON_SCHEDULE` | `0 9 * * 1` |
 
@@ -184,8 +186,8 @@ npm start
 
 ### スプレッドシート
 
-- **収集データシート**: 自動作成され、収集した情報が保存されます
-- **❶RAW_生徒様情報シート**: 生徒情報と配信先Webhookが管理されています
+- **お役立ち情報シート**: 自動作成され、収集した情報が保存されます（`1ofjmoSr6Qo2hEId7oClBRS-qYxTx75GqF0Ydbu4pO5k`）
+- **❶RAW_生徒様情報シート**: 生徒情報と配信先Webhookが管理されています（`1iqrAhNjW8jTvobkur5N_9r9uUWFHCKqrhxM72X5z-iM`）
 
 ### Discord送信条件
 

@@ -34,7 +34,8 @@ async function getStudentData() {
       throw new Error('Google Sheets API not initialized');
     }
 
-    const spreadsheetId = process.env.SPREADSHEET_ID;
+    // 生徒情報は元のスプレッドシートから取得
+    const spreadsheetId = '1iqrAhNjW8jTvobkur5N_9r9uUWFHCKqrhxM72X5z-iM';
     const range = '❶RAW_生徒様情報!A:I';
 
     const response = await sheets.spreadsheets.values.get({
@@ -66,7 +67,7 @@ async function getStudentData() {
 
 /**
  * 収集した情報をスプレッドシートに保存
- * シート名: 収集データ（自動作成）
+ * シート名: お役立ち情報（自動作成）
  * @param {Array} data - 保存するデータ
  */
 async function saveCollectedInfo(data) {
@@ -76,7 +77,7 @@ async function saveCollectedInfo(data) {
     }
 
     const spreadsheetId = process.env.SPREADSHEET_ID;
-    const sheetName = '収集データ';
+    const sheetName = 'お役立ち情報';
 
     // シートの存在確認・作成
     try {
@@ -159,7 +160,7 @@ async function getCollectedInfo() {
     }
 
     const spreadsheetId = process.env.SPREADSHEET_ID;
-    const sheetName = '収集データ';
+    const sheetName = 'お役立ち情報';
     const range = `${sheetName}!A:F`;
 
     const response = await sheets.spreadsheets.values.get({
@@ -201,7 +202,7 @@ async function markAsSent(rowIndex) {
     }
 
     const spreadsheetId = process.env.SPREADSHEET_ID;
-    const sheetName = '収集データ';
+    const sheetName = 'お役立ち情報';
     const range = `${sheetName}!F${rowIndex}`;
 
     await sheets.spreadsheets.values.update({
