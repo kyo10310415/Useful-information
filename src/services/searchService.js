@@ -1,22 +1,96 @@
 require('dotenv').config();
 const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const OpenAI = require('openai');
 
 /**
- * Web検索APIで情報を検索（Google/Bing/Gemini対応）
+ * Web検索APIで情報を検索（OpenAI/Gemini/Bing/Google対応）
  * @param {string} query - 検索クエリ
  * @param {number} num - 取得件数
  * @returns {Promise<Array>} 検索結果
  */
 async function searchInformation(query, num = 5) {
-  const searchProvider = process.env.SEARCH_PROVIDER || 'gemini';
+  const searchProvider = process.env.SEARCH_PROVIDER || 'openai';
   
-  if (searchProvider === 'gemini') {
+  if (searchProvider === 'openai') {
+    return searchWithOpenAI(query, num);
+  } else if (searchProvider === 'gemini') {
     return searchWithGemini(query, num);
   } else if (searchProvider === 'bing') {
     return searchWithBing(query, num);
   } else {
     return searchWithGoogle(query, num);
+  }
+}
+
+/**
+ * OpenAI APIで検索（web_search機能）
+ */
+async function searchWithOpenAI(query, num) {
+  try {
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    console.log(`[OpenAI] Searching: ${query}`);
+
+    const openai = new OpenAI({ apiKey });
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'あなたはVTuber業界の情報収集アシスタントです。与えられた検索クエリに対して、最新の情報を見つけてJSON形式で返してください。'
+        },
+        {
+          role: 'user',
+          content: `以下の検索クエリに対して、最新の情報を${num}件見つけてください。過去1週間以内の情報を優先してください。
+
+検索クエリ: ${query}
+
+JSON形式で以下のように返してください（コードブロックなし、純粋なJSONのみ）：
+[
+  {
+    "title": "記事のタイトル",
+    "url": "https://example.com/article",
+    "snippet": "記事の概要（100文字程度）"
+  }
+]`
+        }
+      ],
+      tools: [{
+        type: 'web_search'
+      }],
+      temperature: 0.3
+    });
+
+    const responseText = completion.choices[0].message.content;
+
+    // JSON部分を抽出
+    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.log('No JSON found in response:', responseText);
+      return [];
+    }
+
+    const results = JSON.parse(jsonMatch[0]);
+
+    return results.map(item => ({
+      title: item.title,
+      link: item.url,
+      snippet: item.snippet,
+      publishedDate: new Date().toISOString()
+    }));
+
+  } catch (error) {
+    console.error('OpenAI Search error:', error.message);
+    if (error.response) {
+      console.error('API Error:', error.response.data);
+    }
+    return [];
   }
 }
 

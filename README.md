@@ -22,7 +22,8 @@ VTuber活動に役立つ最新情報（オーディション情報、YouTube/X�
 - **Backend**: Node.js + Express.js
 - **Frontend**: Bootstrap 5 + EJS
 - **APIs**: 
-  - **Gemini API**（推奨・無料）with Grounding
+  - **OpenAI API**（推奨・ほぼ無料）with web_search
+  - Gemini API（代替）
   - Bing Web Search API（代替）
   - Google Custom Search API（代替）
   - Google Sheets API
@@ -56,10 +57,13 @@ cp .env.example .env
 `.env` ファイルを編集：
 
 ```env
-# Search Provider（gemini/bing/google）
-SEARCH_PROVIDER=gemini
+# Search Provider（openai/gemini/bing/google）
+SEARCH_PROVIDER=openai
 
-# Gemini API（推奨・無料）
+# OpenAI API（推奨・ほぼ無料）
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Gemini API（代替）
 GEMINI_API_KEY=your_gemini_api_key_here
 
 # Bing Web Search API（オプション）
@@ -86,9 +90,32 @@ CRON_SCHEDULE=0 9 * * 1
 
 ## 🔑 API設定ガイド
 
-### Gemini API（推奨・完全無料）
+### OpenAI API（推奨・ほぼ無料）
 
-**最も簡単で確実な方法です！**
+**ChatGPTと同じweb_search機能を使用！最も確実な方法です。**
+
+**手順**:
+
+1. **OpenAI Platform**: https://platform.openai.com/api-keys
+2. アカウント作成（クレジットカード登録必要）
+3. **「Create new secret key」**をクリック
+4. APIキーをコピー
+
+**料金**: 
+- **GPT-4o-mini**: $0.150 / 1M tokens（入力）、$0.600 / 1M tokens（出力）
+- **新規アカウント**: $5の無料クレジット（3ヶ月有効）
+- このシステムでの使用量: 週5クエリ = 月約$0.03（約5円/月）
+- **$5クレジット = 約166ヶ月分（13年以上）**
+
+**メリット**:
+- ✅ ChatGPTと同じweb_search機能
+- ✅ 確実に動作
+- ✅ 実質無料（$5クレジットで13年以上使える）
+- ✅ 高品質な検索結果
+
+---
+
+### Gemini API（代替・完全無料）
 
 **手順**:
 
