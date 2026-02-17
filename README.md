@@ -22,7 +22,7 @@ VTuber活動に役立つ最新情報（オーディション情報、YouTube/X�
 - **Backend**: Node.js + Express.js
 - **Frontend**: Bootstrap 5 + EJS
 - **APIs**: 
-  - Google Custom Search API
+  - **Bing Web Search API**（推奨）または Google Custom Search API
   - Google Sheets API
   - Discord Webhooks
 - **Scheduler**: node-cron
@@ -54,7 +54,13 @@ cp .env.example .env
 `.env` ファイルを編集：
 
 ```env
-# Google Custom Search API
+# Search Provider（bingまたはgoogle）
+SEARCH_PROVIDER=bing
+
+# Bing Web Search API（推奨）
+BING_API_KEY=your_bing_api_key_here
+
+# Google Custom Search API（オプション）
 GOOGLE_API_KEY=your_google_api_key_here
 SEARCH_ENGINE_ID=your_search_engine_id_here
 
@@ -75,7 +81,40 @@ CRON_SCHEDULE=0 9 * * 1
 
 ## 🔑 API設定ガイド
 
-### Google Custom Search API
+### Bing Web Search API（推奨）
+
+Google Custom Search APIで403エラーが出る場合は、Bing Web Search APIを使用してください。
+
+**手順**:
+
+1. **Azureアカウント作成**: https://azure.microsoft.com/free/
+   - 無料アカウント（12ヶ月無料サービス + $200クレジット）
+   - クレジットカード必要（無料枠内なら課金なし）
+
+2. **Azure Portal**にアクセス: https://portal.azure.com/
+
+3. **Bing Search v7リソース作成**:
+   - 「リソースの作成」をクリック
+   - 「Bing Search v7」を検索
+   - **価格レベル**: F1（無料） - 月1,000クエリまで無料
+   - 「作成」をクリック
+
+4. **APIキー取得**:
+   - 作成したリソースを開く
+   - 左メニュー「キーとエンドポイント」
+   - **KEY 1** または **KEY 2** をコピー
+
+**料金**: 
+- F1（無料枠）: 1,000クエリ/月（約33クエリ/日）
+- このシステムでの使用量: 週5クエリ = 約20クエリ/月（無料枠内）
+
+---
+
+### Google Custom Search API（オプション）
+
+Bing APIが動作しない場合の代替手段として使用できます。
+
+**注意**: 一部のアカウントでは403エラーが出る場合があります。
 
 1. [Google Cloud Console](https://console.cloud.google.com/) にアクセス
 2. 新しいプロジェクトを作成（または既存プロジェクトを選択）
