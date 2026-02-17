@@ -16,6 +16,10 @@ async function searchInformation(query, num = 5) {
       throw new Error('Google API credentials not configured');
     }
 
+    // デバッグ: APIキーの最初と最後の4文字のみ表示
+    console.log(`API Key: ${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`);
+    console.log(`Search Engine ID: ${searchEngineId}`);
+
     // 1週間以内の情報のみ取得（dateRestrict: d7 = 過去7日間）
     const response = await axios.get('https://www.googleapis.com/customsearch/v1', {
       params: {
