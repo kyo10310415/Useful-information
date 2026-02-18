@@ -160,7 +160,18 @@ async function getCollectedInfo() {
 
     const spreadsheetId = process.env.SPREADSHEET_ID;
     const sheetName = 'お役立ち情報';
-    const range = `${sheetName}!A:E`;
+    
+    // まずヘッダー行を確認
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A1:F1`
+    });
+    
+    const headers = headerResponse.data.values?.[0] || [];
+    const hasUrlColumn = headers.includes('URL'); // URL列があるか確認
+    
+    // データ範囲を動的に設定
+    const range = hasUrlColumn ? `${sheetName}!A:F` : `${sheetName}!A:E`;
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -175,16 +186,32 @@ async function getCollectedInfo() {
     // データ行（ヘッダーを除く）
     const dataRows = rows.slice(1);
 
-    // 全データを取得
-    const allData = dataRows.map((row, index) => ({
-      rowIndex: index + 2, // スプレッドシートの行番号（1-indexed + header）
-      collectedAt: row[0] || '',
-      title: row[1] || '',
-      link: '', // URLは保存しない
-      snippet: row[2] || '',
-      query: row[3] || '',
-      sent: row[4] === '✓'
-    }));
+    // 全データを取得（URL列の有無に対応）
+    const allData = dataRows.map((row, index) => {
+      if (hasUrlColumn) {
+        // 古いフォーマット: 収集日時 | タイトル | URL | 概要 | 検索クエリ | 送信済み
+        return {
+          rowIndex: index + 2,
+          collectedAt: row[0] || '',
+          title: row[1] || '',
+          link: '', // URLは表示しない
+          snippet: row[3] || '', // URL列の次
+          query: row[4] || '',
+          sent: row[5] === '✓'
+        };
+      } else {
+        // 新しいフォーマット: 収集日時 | タイトル | 概要 | 検索クエリ | 送信済み
+        return {
+          rowIndex: index + 2,
+          collectedAt: row[0] || '',
+          title: row[1] || '',
+          link: '',
+          snippet: row[2] || '',
+          query: row[3] || '',
+          sent: row[4] === '✓'
+        };
+      }
+    });
 
     if (allData.length === 0) {
       return [];
@@ -214,7 +241,19 @@ async function markAsSent(rowIndex) {
 
     const spreadsheetId = process.env.SPREADSHEET_ID;
     const sheetName = 'お役立ち情報';
-    const range = `${sheetName}!E${rowIndex}`;
+    
+    // ヘッダー行を確認してURL列があるか判定
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A1:F1`
+    });
+    
+    const headers = headerResponse.data.values?.[0] || [];
+    const hasUrlColumn = headers.includes('URL');
+    
+    // 送信済みフラグの列を決定
+    const column = hasUrlColumn ? 'F' : 'E';
+    const range = `${sheetName}!${column}${rowIndex}`;
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
