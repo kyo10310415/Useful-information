@@ -82,7 +82,7 @@ JSON形式で以下のように返してください（コードブロックな�
       title: item.title,
       link: item.url,
       snippet: item.snippet,
-      publishedDate: new Date().toISOString()
+      publishedDate: new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
     }));
 
   } catch (error) {
@@ -99,15 +99,43 @@ JSON形式で以下のように返してください（コードブロックな�
  */
 async function validateUrl(url) {
   try {
+    // URLの基本的なフォーマットチェック
+    if (!url || !url.startsWith('http')) {
+      console.log(`[URL Validation] ❌ Invalid format: ${url}`);
+      return false;
+    }
+
+    console.log(`[URL Validation] Checking: ${url}`);
+    
     const response = await axios.head(url, {
-      timeout: 5000,
+      timeout: 8000, // 8秒に延長
       maxRedirects: 5,
-      validateStatus: (status) => status >= 200 && status < 400
+      validateStatus: (status) => status >= 200 && status < 400,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
     });
+    
+    console.log(`[URL Validation] ✅ Valid (${response.status}): ${url}`);
     return true;
   } catch (error) {
-    console.log(`[URL Validation] ${url} - Failed (${error.message})`);
-    return false;
+    // HEADが失敗した場合はGETを試行
+    try {
+      console.log(`[URL Validation] HEAD failed, trying GET: ${url}`);
+      const response = await axios.get(url, {
+        timeout: 8000,
+        maxRedirects: 5,
+        validateStatus: (status) => status >= 200 && status < 400,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+      console.log(`[URL Validation] ✅ Valid via GET (${response.status}): ${url}`);
+      return true;
+    } catch (getError) {
+      console.log(`[URL Validation] ❌ Failed: ${url} - ${getError.message}`);
+      return false;
+    }
   }
 }
 
@@ -132,39 +160,39 @@ async function searchWithGemini(query, num) {
       day: 'numeric' 
     });
 
-    // VTuber業界の情報通プロンプト（URL検証を強化）
+    // VTuber業界の情報通プロンプト（検索クエリを明示）
     const prompt = `あなたは「VTuber業界の事情通」であり、活動者のための敏腕コンサルタントです。
 
 日付: ${dateStr}
 
-この日付を基準とした直近1週間（7日間）の情報をWeb検索し、VTuber活動に役立つ情報を収集してください。
+以下の検索クエリでWeb検索を実行し、実際に見つかった記事を5件選んでください：
 
-## 収集する情報のトピック
-- YouTube、X (旧Twitter)、Twitch等のプラットフォームの仕様変更・アルゴリズム更新
-- 大手・注目事務所のVTuberオーディション情報（にじさんじ、ホロライブ、VTA、その他新規プロジェクト）
-- VTuber界隈で流行しているゲーム、ミーム、ハッシュタグ
-- 配信機材やLive2D/3D技術のアップデート情報
+検索クエリ:
+1. "VTuber オーディション 2025"
+2. "YouTube 配信 仕様変更 最新"
+3. "X Twitter 配信者 アップデート"
+4. "VTuber 活動 ノウハウ"
+5. "Live2D 配信機材 最新"
 
-収集した情報の中から、個人のVTuber活動において「即効性が高い」「対策が必要」なものを重要度順に5つ選定してください。
-
-## 重要な制約
-- URLは必ず実際にアクセス可能な実在のURLを記載すること
-- URLを捏造したり推測したりしないこと
-- Web検索で見つけた実際のページのURLのみを使用すること
-- 不明な場合は公式サイトのトップページURLを使用すること
+## 必須条件
+- 必ず実際にWeb検索を実行すること
+- 検索結果から実在する記事URLを取得すること
+- URLは完全な形式で記載（https://から始まる完全なURL）
+- 推測や創作は一切禁止
+- 見つからない場合は該当分野の公式サイトURLを使用
 
 ## 出力形式
-以下のJSON形式で出力してください（コードブロックなし）：
+以下のJSON形式で出力してください（コードブロックやマークダウンなし、純粋なJSONのみ）：
 
 [
   {
-    "title": "【カテゴリ】具体的なタイトル",
-    "url": "検索で見つけた実際のページのURL（必ず実在するもの）",
-    "snippet": "【内容】ニュースの要約。【影響】活動者への影響。【対策】具体的にどう動くべきか。"
+    "title": "【カテゴリ】記事タイトル",
+    "url": "https://example.com/actual-article-url",
+    "snippet": "記事の内容を100文字程度で要約"
   }
 ]
 
-必ず実在するURLを記載し、情報は裏付けを確認してください。`;
+検索結果が見つかったURLのみを記載してください。`;
 
     const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -204,7 +232,7 @@ async function searchWithGemini(query, num) {
           title: item.title,
           link: item.url,
           snippet: item.snippet,
-          publishedDate: new Date().toISOString()
+          publishedDate: new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
         });
       } else {
         console.log(`❌ Invalid URL: ${item.url} - Skipping`);
@@ -218,7 +246,7 @@ async function searchWithGemini(query, num) {
         title: item.title,
         link: item.url,
         snippet: item.snippet,
-        publishedDate: new Date().toISOString()
+        publishedDate: new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
       }));
     }
 
@@ -267,7 +295,7 @@ async function searchWithGoogle(query, num) {
       title: item.title,
       link: item.link,
       snippet: item.snippet,
-      publishedDate: item.pagemap?.metatags?.[0]?.['article:published_time'] || new Date().toISOString()
+      publishedDate: item.pagemap?.metatags?.[0]?.['article:published_time'] || new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
     }));
   } catch (error) {
     console.error('Google Search error:', error.message);
@@ -311,7 +339,7 @@ async function searchWithBing(query, num) {
       title: item.name,
       link: item.url,
       snippet: item.snippet,
-      publishedDate: item.dateLastCrawled || new Date().toISOString()
+      publishedDate: item.dateLastCrawled || new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
     }));
   } catch (error) {
     console.error('Bing Search error:', error.message);
@@ -338,7 +366,7 @@ async function collectVTuberInfo() {
       return results.map(item => ({
         query: 'VTuber業界の最新情報',
         ...item,
-        collectedAt: new Date().toISOString(),
+        collectedAt: new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }),
         sent: false
       }));
     } catch (error) {
@@ -367,7 +395,7 @@ async function collectVTuberInfo() {
         results.push({
           query: query,
           ...searchResults[0],
-          collectedAt: new Date().toISOString(),
+          collectedAt: new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }),
           sent: false
         });
       }
