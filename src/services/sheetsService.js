@@ -100,13 +100,12 @@ async function saveCollectedInfo(data) {
     }
 
     // ヘッダー行
-    const headers = ['収集日時', 'タイトル', 'URL', '概要', '検索クエリ', '送信済み'];
+    const headers = ['収集日時', 'タイトル', '概要', '検索クエリ', '送信済み'];
     
     // データ行
     const rows = data.map(item => [
       item.collectedAt,
       item.title,
-      item.link,
       item.snippet,
       item.query,
       item.sent ? '✓' : ''
@@ -117,7 +116,7 @@ async function saveCollectedInfo(data) {
     try {
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `${sheetName}!A:F`
+        range: `${sheetName}!A:E`
       });
       existingData = response.data.values || [];
     } catch (error) {
@@ -161,7 +160,7 @@ async function getCollectedInfo() {
 
     const spreadsheetId = process.env.SPREADSHEET_ID;
     const sheetName = 'お役立ち情報';
-    const range = `${sheetName}!A:F`;
+    const range = `${sheetName}!A:E`;
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -181,10 +180,10 @@ async function getCollectedInfo() {
       rowIndex: index + 2, // スプレッドシートの行番号（1-indexed + header）
       collectedAt: row[0] || '',
       title: row[1] || '',
-      link: row[2] || '',
-      snippet: row[3] || '',
-      query: row[4] || '',
-      sent: row[5] === '✓'
+      link: '', // URLは保存しない
+      snippet: row[2] || '',
+      query: row[3] || '',
+      sent: row[4] === '✓'
     }));
 
     if (allData.length === 0) {
@@ -215,7 +214,7 @@ async function markAsSent(rowIndex) {
 
     const spreadsheetId = process.env.SPREADSHEET_ID;
     const sheetName = 'お役立ち情報';
-    const range = `${sheetName}!F${rowIndex}`;
+    const range = `${sheetName}!E${rowIndex}`;
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,

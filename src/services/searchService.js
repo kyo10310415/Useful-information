@@ -4,6 +4,88 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const OpenAI = require('openai');
 
 /**
+ * OpenAI APIでファクトチェック
+ */
+async function factCheckWithOpenAI(item) {
+  try {
+    const apiKey = process.env.OPENAI_API_KEY;
+    
+    if (!apiKey) {
+      console.log('[Fact Check] OpenAI API key not configured, skipping fact check');
+      return { valid: true, item }; // APIキーがない場合はスキップ
+    }
+
+    console.log(`[Fact Check] Checking: ${item.title}`);
+
+    const openai = new OpenAI({ apiKey });
+
+    const prompt = `以下のVTuber業界に関する情報が正確かどうかファクトチェックしてください。
+
+タイトル: ${item.title}
+内容: ${item.snippet}
+
+あなたのタスク:
+1. この情報が実際に存在する事実か確認
+2. 内容に明らかな誤りや矛盾がないか確認
+3. 情報が古すぎないか確認（1週間以内の情報であるべき）
+
+以下のJSON形式で回答してください（コードブロックなし）：
+
+{
+  "valid": true または false,
+  "reason": "判定理由（簡潔に）",
+  "confidence": "high/medium/low"
+}
+
+基準:
+- valid=true: 情報が正確で、実在する事実と確認できる
+- valid=false: 明らかな誤り、存在しない情報、古すぎる情報
+- confidence: 判定の確信度`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'あなたはVTuber業界に詳しいファクトチェッカーです。情報の正確性を慎重に判定してください。'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.3
+    });
+
+    const responseText = completion.choices[0].message.content;
+    
+    // JSON部分を抽出
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.log('[Fact Check] ⚠️ No JSON found, assuming valid');
+      return { valid: true, item };
+    }
+
+    const result = JSON.parse(jsonMatch[0]);
+    
+    if (result.valid) {
+      console.log(`[Fact Check] ✅ Valid (${result.confidence}): ${item.title}`);
+      console.log(`[Fact Check]    Reason: ${result.reason}`);
+      return { valid: true, item };
+    } else {
+      console.log(`[Fact Check] ❌ Invalid: ${item.title}`);
+      console.log(`[Fact Check]    Reason: ${result.reason}`);
+      return { valid: false, reason: result.reason };
+    }
+
+  } catch (error) {
+    console.error('[Fact Check] Error:', error.message);
+    // エラーの場合は情報を保持（安全側に倒す）
+    return { valid: true, item };
+  }
+}
+
+/**
  * Web検索APIで情報を検索（OpenAI/Gemini/Bing/Google対応）
  * @param {string} query - 検索クエリ
  * @param {number} num - 取得件数
@@ -255,7 +337,6 @@ async function searchWithGemini(query, num) {
 [
   {
     "title": "[見出し：情報のジャンル] タイトル",
-    "url": "信頼できる情報源のURL（必ずアクセス可能な実在のもの）",
     "snippet": "【内容】ニュースの要約。【影響】活動者にどのような影響があるか。【対策】具体的にどう動くべきか。"
   }
 ]
@@ -265,14 +346,10 @@ async function searchWithGemini(query, num) {
 - 古い情報（1週間以上前）は絶対に含めないこと
 - 必ず実際にWeb検索を実行すること
 - 情報は必ず裏付け（ソース）を確認し、憶測で書かないこと
-- URLは必ずアクセス可能な実在のものを記載すること
-- URLはテキストでコピーできる完全な形式（https://から始まる）で記載すること
-- **短縮URL（bit.ly、goo.gl、t.co等）は絶対に使用しないこと**
-- 元の完全なURL（公式サイトやニュースサイトの実際のページURL）を記載すること
+- 実在する確認済みの情報のみを記載すること
 - 推測や創作は一切禁止
-- 見つからない場合は該当分野の公式サイトURLを使用
 
-検索結果が見つかったURLのみを記載してください。`;
+検索結果が見つかった情報のみを記載してください。`;
 
     const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -300,37 +377,33 @@ async function searchWithGemini(query, num) {
 
     const results = JSON.parse(jsonMatch[0]);
 
-    // URL検証とフィルタリング（短縮URL展開を含む）
-    console.log('[Gemini] Validating and expanding URLs...');
-    const validatedResults = [];
+    // OpenAI APIでファクトチェック
+    console.log('[Gemini] Fact-checking with OpenAI...');
+    const factCheckedResults = [];
     
     for (const item of results) {
-      const validation = await validateUrl(item.url);
-      if (validation.valid) {
-        console.log(`✅ Valid URL: ${validation.finalUrl}`);
-        validatedResults.push({
+      const check = await factCheckWithOpenAI({
+        title: item.title,
+        snippet: item.snippet
+      });
+      
+      if (check.valid) {
+        factCheckedResults.push({
           title: item.title,
-          link: validation.finalUrl, // 展開されたURLを使用
+          link: '', // URLは保存しない
           snippet: item.snippet,
           publishedDate: new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
         });
-      } else {
-        console.log(`❌ Invalid URL: ${item.url} - Skipping`);
       }
     }
 
-    if (validatedResults.length === 0) {
-      console.log('⚠️ No valid URLs found. Using original results.');
-      // バリデーションでゼロになった場合は元のデータを返す
-      return results.map(item => ({
-        title: item.title,
-        link: item.url,
-        snippet: item.snippet,
-        publishedDate: new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
-      }));
+    if (factCheckedResults.length === 0) {
+      console.log('⚠️ No valid information found after fact-checking.');
+      return [];
     }
 
-    return validatedResults;
+    console.log(`✅ Fact check complete: ${factCheckedResults.length}/${results.length} items passed`);
+    return factCheckedResults;
 
   } catch (error) {
     console.error('Gemini Search error:', error.message);

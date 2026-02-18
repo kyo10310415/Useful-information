@@ -80,18 +80,10 @@
                                             <% } %>
                                         </td>
                                         <td>
-                                            <a href="<%= item.link %>" target="_blank" class="text-decoration-none">
-                                                <%= item.title %>
-                                                <i class="fas fa-external-link-alt fa-xs"></i>
-                                            </a>
-                                            <br>
-                                            <small class="text-muted">
-                                                <i class="fas fa-link fa-xs"></i> 
-                                                <code style="font-size: 0.75rem; word-break: break-all;"><%= item.link %></code>
-                                            </small>
+                                            <strong><%= item.title %></strong>
                                         </td>
                                         <td>
-                                            <small><%= item.snippet.substring(0, 100) %>...</small>
+                                            <small><%= item.snippet %></small>
                                         </td>
                                         <td>
                                             <span class="badge bg-secondary"><%= item.query %></span>
