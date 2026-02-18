@@ -107,7 +107,7 @@ async function searchWithGemini(query, num) {
 
     console.log(`[Gemini] Searching: ${query}`);
 
-    // 直接REST APIを使用（v1betaエンドポイント）
+    // 最新のv1beta APIとgemini-2.5-flashを使用
     const prompt = `以下の検索クエリに対して、最新の情報を${num}件見つけてください。
 各結果について、タイトル、URL、概要（100文字程度）を提供してください。
 情報は過去1週間以内のものを優先してください。
@@ -124,7 +124,7 @@ JSON形式で以下のように返してください（コードブロックな�
 ]`;
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         contents: [{
           parts: [{
@@ -132,7 +132,7 @@ JSON形式で以下のように返してください（コードブロックな�
           }]
         }],
         tools: [{
-          googleSearch: {}
+          google_search: {}
         }]
       }
     );
