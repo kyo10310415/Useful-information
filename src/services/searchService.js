@@ -159,22 +159,36 @@ async function searchWithGemini(query, num) {
       month: 'long', 
       day: 'numeric' 
     });
+    
+    // 1週間前の日付を取得
+    const oneWeekAgo = new Date(today);
+    oneWeekAgo.setDate(today.getDate() - 7);
+    const oneWeekAgoStr = oneWeekAgo.toLocaleDateString('ja-JP', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
 
-    // VTuber業界の情報通プロンプト（検索クエリを明示）
+    // VTuber業界の情報通プロンプト（1週間以内に限定）
     const prompt = `あなたは「VTuber業界の事情通」であり、活動者のための敏腕コンサルタントです。
 
-日付: ${dateStr}
+現在の日付: ${dateStr}
+検索期間: ${oneWeekAgoStr} 〜 ${dateStr}（直近7日間）
 
-以下の検索クエリでWeb検索を実行し、実際に見つかった記事を5件選んでください：
+**重要: 必ず ${oneWeekAgoStr} 以降に公開された記事のみを選んでください。古い情報は一切含めないでください。**
+
+以下の検索クエリでWeb検索を実行し、**直近1週間以内**に公開された記事を5件選んでください：
 
 検索クエリ:
-1. "VTuber オーディション 2025"
-2. "YouTube 配信 仕様変更 最新"
-3. "X Twitter 配信者 アップデート"
-4. "VTuber 活動 ノウハウ"
-5. "Live2D 配信機材 最新"
+1. "VTuber オーディション 2025 募集中"
+2. "YouTube 配信 仕様変更 2025年2月"
+3. "X Twitter 配信者 アップデート 最新"
+4. "VTuber 活動 ノウハウ 2025"
+5. "Live2D 配信機材 最新情報"
 
 ## 必須条件
+- **必ず ${oneWeekAgoStr} 以降に公開された記事のみを選ぶこと**
+- 古い記事（1週間以上前）は絶対に含めないこと
 - 必ず実際にWeb検索を実行すること
 - 検索結果から実在する記事URLを取得すること
 - URLは完全な形式で記載（https://から始まる完全なURL）
