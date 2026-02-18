@@ -95,6 +95,59 @@ JSON形式で以下のように返してください（コードブロックな�
 }
 
 /**
+ * 短縮URLを展開して実際のURLを取得
+ */
+async function expandShortUrl(url) {
+  try {
+    // 短縮URLサービスのドメインリスト
+    const shortUrlDomains = [
+      'bit.ly', 'goo.gl', 't.co', 'tinyurl.com', 
+      'ow.ly', 'is.gd', 'buff.ly', 'adf.ly',
+      'short.link', 'cutt.ly', 'tiny.cc'
+    ];
+
+    // 短縮URLかチェック
+    const urlObj = new URL(url);
+    const isShortUrl = shortUrlDomains.some(domain => urlObj.hostname.includes(domain));
+
+    if (!isShortUrl) {
+      return url; // 短縮URLではない場合はそのまま返す
+    }
+
+    console.log(`[URL Expand] Expanding short URL: ${url}`);
+
+    // HEADリクエストでリダイレクト先を取得
+    const response = await axios.head(url, {
+      timeout: 8000,
+      maxRedirects: 0, // リダイレクトを追わない
+      validateStatus: (status) => status >= 200 && status < 400,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+
+    // リダイレクトがある場合
+    if (response.headers.location) {
+      const expandedUrl = response.headers.location;
+      console.log(`[URL Expand] ✅ Expanded: ${url} → ${expandedUrl}`);
+      return expandedUrl;
+    }
+
+    return url;
+  } catch (error) {
+    // リダイレクトエラー（301, 302等）の場合
+    if (error.response && error.response.headers.location) {
+      const expandedUrl = error.response.headers.location;
+      console.log(`[URL Expand] ✅ Expanded: ${url} → ${expandedUrl}`);
+      return expandedUrl;
+    }
+
+    console.log(`[URL Expand] ⚠️ Could not expand: ${url}`);
+    return url; // 展開できない場合は元のURLを返す
+  }
+}
+
+/**
  * URLが有効かチェック（HEAD リクエスト）
  */
 async function validateUrl(url) {
@@ -102,12 +155,15 @@ async function validateUrl(url) {
     // URLの基本的なフォーマットチェック
     if (!url || !url.startsWith('http')) {
       console.log(`[URL Validation] ❌ Invalid format: ${url}`);
-      return false;
+      return { valid: false, finalUrl: url };
     }
 
     console.log(`[URL Validation] Checking: ${url}`);
     
-    const response = await axios.head(url, {
+    // 短縮URLを展開
+    const expandedUrl = await expandShortUrl(url);
+    
+    const response = await axios.head(expandedUrl, {
       timeout: 8000, // 8秒に延長
       maxRedirects: 5,
       validateStatus: (status) => status >= 200 && status < 400,
@@ -116,13 +172,17 @@ async function validateUrl(url) {
       }
     });
     
-    console.log(`[URL Validation] ✅ Valid (${response.status}): ${url}`);
-    return true;
+    console.log(`[URL Validation] ✅ Valid (${response.status}): ${expandedUrl}`);
+    return { valid: true, finalUrl: expandedUrl };
   } catch (error) {
     // HEADが失敗した場合はGETを試行
     try {
       console.log(`[URL Validation] HEAD failed, trying GET: ${url}`);
-      const response = await axios.get(url, {
+      
+      // 短縮URLを展開
+      const expandedUrl = await expandShortUrl(url);
+      
+      const response = await axios.get(expandedUrl, {
         timeout: 8000,
         maxRedirects: 5,
         validateStatus: (status) => status >= 200 && status < 400,
@@ -130,11 +190,11 @@ async function validateUrl(url) {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
       });
-      console.log(`[URL Validation] ✅ Valid via GET (${response.status}): ${url}`);
-      return true;
+      console.log(`[URL Validation] ✅ Valid via GET (${response.status}): ${expandedUrl}`);
+      return { valid: true, finalUrl: expandedUrl };
     } catch (getError) {
       console.log(`[URL Validation] ❌ Failed: ${url} - ${getError.message}`);
-      return false;
+      return { valid: false, finalUrl: url };
     }
   }
 }
@@ -207,6 +267,8 @@ async function searchWithGemini(query, num) {
 - 情報は必ず裏付け（ソース）を確認し、憶測で書かないこと
 - URLは必ずアクセス可能な実在のものを記載すること
 - URLはテキストでコピーできる完全な形式（https://から始まる）で記載すること
+- **短縮URL（bit.ly、goo.gl、t.co等）は絶対に使用しないこと**
+- 元の完全なURL（公式サイトやニュースサイトの実際のページURL）を記載すること
 - 推測や創作は一切禁止
 - 見つからない場合は該当分野の公式サイトURLを使用
 
@@ -238,17 +300,17 @@ async function searchWithGemini(query, num) {
 
     const results = JSON.parse(jsonMatch[0]);
 
-    // URL検証とフィルタリング
-    console.log('[Gemini] Validating URLs...');
+    // URL検証とフィルタリング（短縮URL展開を含む）
+    console.log('[Gemini] Validating and expanding URLs...');
     const validatedResults = [];
     
     for (const item of results) {
-      const isValid = await validateUrl(item.url);
-      if (isValid) {
-        console.log(`✅ Valid URL: ${item.url}`);
+      const validation = await validateUrl(item.url);
+      if (validation.valid) {
+        console.log(`✅ Valid URL: ${validation.finalUrl}`);
         validatedResults.push({
           title: item.title,
-          link: item.url,
+          link: validation.finalUrl, // 展開されたURLを使用
           snippet: item.snippet,
           publishedDate: new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
         });
