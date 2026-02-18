@@ -105,23 +105,44 @@ async function searchWithGemini(query, num) {
       throw new Error('Gemini API key not configured');
     }
 
-    console.log(`[Gemini] Searching: ${query}`);
+    console.log(`[Gemini] Searching for VTuber information`);
 
-    // 最新のv1beta APIとgemini-2.5-flashを使用
-    const prompt = `以下の検索クエリに対して、最新の情報を${num}件見つけてください。
-各結果について、タイトル、URL、概要（100文字程度）を提供してください。
-情報は過去1週間以内のものを優先してください。
+    // 現在の日付を取得
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('ja-JP', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
 
-検索クエリ: ${query}
+    // VTuber業界の情報通プロンプト
+    const prompt = `あなたは「VTuber業界の事情通」であり、活動者のための敏腕コンサルタントです。
 
-JSON形式で以下のように返してください（コードブロックなし）：
+日付: ${dateStr}
+
+この日付を基準とした直近1週間（7日間）の情報をWeb検索し、VTuber活動に役立つ情報を収集してください。
+
+## 収集する情報のトピック
+- YouTube、X (旧Twitter)、Twitch等のプラットフォームの仕様変更・アルゴリズム更新
+- 大手・注目事務所のVTuberオーディション情報（にじさんじ、ホロライブ、VTA、その他新規プロジェクト）
+- VTuber界隈で流行しているゲーム、ミーム、ハッシュタグ
+- 配信機材やLive2D/3D技術のアップデート情報
+
+収集した情報の中から、個人のVTuber活動において「即効性が高い」「対策が必要」なものを重要度順に5つ選定してください。
+
+## 出力形式
+以下のJSON形式で出力してください（コードブロックなし）：
+
 [
   {
-    "title": "記事のタイトル",
+    "title": "見出し：情報のジャンル - タイトル",
     "url": "https://example.com/article",
-    "snippet": "記事の概要（100文字程度）"
+    "snippet": "【内容】ニュースの要約。【影響】活動者への影響。【対策】具体的にどう動くべきか。",
+    "category": "プラットフォーム更新/オーディション/トレンド/技術アップデート"
   }
-]`;
+]
+
+必ず実在するURLを記載し、情報は裏付けを確認してください。`;
 
     const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -138,11 +159,12 @@ JSON形式で以下のように返してください（コードブロックな�
     );
 
     const text = response.data.candidates[0].content.parts[0].text;
+    console.log('[Gemini] Response received:', text.substring(0, 200) + '...');
 
     // JSON部分を抽出
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      console.log('No JSON found in response:', text);
+      console.log('No JSON found in response, using full text');
       return [];
     }
 
@@ -258,6 +280,27 @@ async function searchWithBing(query, num) {
  * @returns {Promise<Array>} 収集した情報の配列
  */
 async function collectVTuberInfo() {
+  const searchProvider = process.env.SEARCH_PROVIDER || 'openai';
+  
+  // Geminiの場合は一度に5件取得
+  if (searchProvider === 'gemini') {
+    try {
+      console.log('Collecting VTuber information with Gemini...');
+      const results = await searchWithGemini('', 5);
+      
+      return results.map(item => ({
+        query: 'VTuber業界の最新情報',
+        ...item,
+        collectedAt: new Date().toISOString(),
+        sent: false
+      }));
+    } catch (error) {
+      console.error('Failed to collect VTuber info:', error.message);
+      return [];
+    }
+  }
+  
+  // 他のプロバイダー（OpenAI/Bing/Google）は従来通り
   const queries = [
     'VTuber オーディション 募集',
     'YouTube 仕様変更 最新',
