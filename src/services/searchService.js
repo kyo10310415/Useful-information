@@ -95,6 +95,23 @@ JSON形式で以下のように返してください（コードブロックな�
 }
 
 /**
+ * URLが有効かチェック（HEAD リクエスト）
+ */
+async function validateUrl(url) {
+  try {
+    const response = await axios.head(url, {
+      timeout: 5000,
+      maxRedirects: 5,
+      validateStatus: (status) => status >= 200 && status < 400
+    });
+    return true;
+  } catch (error) {
+    console.log(`[URL Validation] ${url} - Failed (${error.message})`);
+    return false;
+  }
+}
+
+/**
  * Gemini APIで検索（Grounding with Google Search）
  */
 async function searchWithGemini(query, num) {
@@ -115,7 +132,7 @@ async function searchWithGemini(query, num) {
       day: 'numeric' 
     });
 
-    // VTuber業界の情報通プロンプト
+    // VTuber業界の情報通プロンプト（URL検証を強化）
     const prompt = `あなたは「VTuber業界の事情通」であり、活動者のための敏腕コンサルタントです。
 
 日付: ${dateStr}
@@ -130,15 +147,20 @@ async function searchWithGemini(query, num) {
 
 収集した情報の中から、個人のVTuber活動において「即効性が高い」「対策が必要」なものを重要度順に5つ選定してください。
 
+## 重要な制約
+- URLは必ず実際にアクセス可能な実在のURLを記載すること
+- URLを捏造したり推測したりしないこと
+- Web検索で見つけた実際のページのURLのみを使用すること
+- 不明な場合は公式サイトのトップページURLを使用すること
+
 ## 出力形式
 以下のJSON形式で出力してください（コードブロックなし）：
 
 [
   {
-    "title": "見出し：情報のジャンル - タイトル",
-    "url": "https://example.com/article",
-    "snippet": "【内容】ニュースの要約。【影響】活動者への影響。【対策】具体的にどう動くべきか。",
-    "category": "プラットフォーム更新/オーディション/トレンド/技術アップデート"
+    "title": "【カテゴリ】具体的なタイトル",
+    "url": "検索で見つけた実際のページのURL（必ず実在するもの）",
+    "snippet": "【内容】ニュースの要約。【影響】活動者への影響。【対策】具体的にどう動くべきか。"
   }
 ]
 
@@ -159,23 +181,48 @@ async function searchWithGemini(query, num) {
     );
 
     const text = response.data.candidates[0].content.parts[0].text;
-    console.log('[Gemini] Response received:', text.substring(0, 200) + '...');
+    console.log('[Gemini] Response received, extracting JSON...');
 
     // JSON部分を抽出
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      console.log('No JSON found in response, using full text');
+      console.log('No JSON found in response');
       return [];
     }
 
     const results = JSON.parse(jsonMatch[0]);
 
-    return results.map(item => ({
-      title: item.title,
-      link: item.url,
-      snippet: item.snippet,
-      publishedDate: new Date().toISOString()
-    }));
+    // URL検証とフィルタリング
+    console.log('[Gemini] Validating URLs...');
+    const validatedResults = [];
+    
+    for (const item of results) {
+      const isValid = await validateUrl(item.url);
+      if (isValid) {
+        console.log(`✅ Valid URL: ${item.url}`);
+        validatedResults.push({
+          title: item.title,
+          link: item.url,
+          snippet: item.snippet,
+          publishedDate: new Date().toISOString()
+        });
+      } else {
+        console.log(`❌ Invalid URL: ${item.url} - Skipping`);
+      }
+    }
+
+    if (validatedResults.length === 0) {
+      console.log('⚠️ No valid URLs found. Using original results.');
+      // バリデーションでゼロになった場合は元のデータを返す
+      return results.map(item => ({
+        title: item.title,
+        link: item.url,
+        snippet: item.snippet,
+        publishedDate: new Date().toISOString()
+      }));
+    }
+
+    return validatedResults;
 
   } catch (error) {
     console.error('Gemini Search error:', error.message);

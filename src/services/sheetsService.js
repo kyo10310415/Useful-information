@@ -150,7 +150,7 @@ async function saveCollectedInfo(data) {
 }
 
 /**
- * 収集データをスプレッドシートから取得
+ * 収集データをスプレッドシートから取得（最新セッションのみ）
  * @returns {Promise<Array>} 収集データの配列
  */
 async function getCollectedInfo() {
@@ -176,7 +176,8 @@ async function getCollectedInfo() {
     // データ行（ヘッダーを除く）
     const dataRows = rows.slice(1);
 
-    return dataRows.map((row, index) => ({
+    // 全データを取得
+    const allData = dataRows.map((row, index) => ({
       rowIndex: index + 2, // スプレッドシートの行番号（1-indexed + header）
       collectedAt: row[0] || '',
       title: row[1] || '',
@@ -185,6 +186,27 @@ async function getCollectedInfo() {
       query: row[4] || '',
       sent: row[5] === '✓'
     }));
+
+    if (allData.length === 0) {
+      return [];
+    }
+
+    // 収集日時でソート（新しい順）
+    allData.sort((a, b) => new Date(b.collectedAt) - new Date(a.collectedAt));
+
+    // 最新の収集日時を取得
+    const latestCollectionTime = allData[0].collectedAt;
+    const latestDate = new Date(latestCollectionTime);
+
+    // 最新の収集セッション（最新の収集日時から1分以内のデータ）のみを返す
+    const latestSession = allData.filter(item => {
+      const itemDate = new Date(item.collectedAt);
+      const timeDiff = Math.abs(latestDate - itemDate);
+      return timeDiff < 60000; // 1分以内
+    });
+
+    return latestSession;
+
   } catch (error) {
     console.error('Failed to get collected info:', error.message);
     return [];
