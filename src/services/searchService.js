@@ -107,40 +107,42 @@ async function searchWithGemini(query, num) {
 
     console.log(`[Gemini] Searching: ${query}`);
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      tools: [{
-        googleSearch: {}
-      }]
-    });
-
-    // Gemini APIで検索プロンプト
-    const prompt = `
-以下の検索クエリに対して、最新の情報を${num}件見つけてください。
+    // 直接REST APIを使用（v1betaエンドポイント）
+    const prompt = `以下の検索クエリに対して、最新の情報を${num}件見つけてください。
 各結果について、タイトル、URL、概要（100文字程度）を提供してください。
 情報は過去1週間以内のものを優先してください。
 
 検索クエリ: ${query}
 
-JSON形式で以下のように返してください：
+JSON形式で以下のように返してください（コードブロックなし）：
 [
   {
     "title": "記事のタイトル",
     "url": "https://example.com/article",
     "snippet": "記事の概要（100文字程度）"
   }
-]
-`;
+]`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        tools: [{
+          googleSearch: {}
+        }]
+      }
+    );
+
+    const text = response.data.candidates[0].content.parts[0].text;
 
     // JSON部分を抽出
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      console.log('No JSON found in response');
+      console.log('No JSON found in response:', text);
       return [];
     }
 
@@ -156,7 +158,7 @@ JSON形式で以下のように返してください：
   } catch (error) {
     console.error('Gemini Search error:', error.message);
     if (error.response) {
-      console.error('API Error:', error.response.data);
+      console.error('API Error:', JSON.stringify(error.response.data, null, 2));
     }
     return [];
   }
