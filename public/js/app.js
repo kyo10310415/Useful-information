@@ -30,7 +30,8 @@ async function collectNow() {
         const response = await fetch('/api/collect', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Information-Request': '1'
             }
         });
         
@@ -72,9 +73,10 @@ async function sendToDiscord(rowIndex) {
         const response = await fetch('/api/send', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Information-Request': '1'
             },
-            body: JSON.stringify({ rowIndex })
+            body: JSON.stringify({ rowIndex: Number(rowIndex), confirmed: true })
         });
         
         const result = await response.json();

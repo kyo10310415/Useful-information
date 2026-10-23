@@ -380,3 +380,19 @@ WannaV - VTuber育成スクール
 ---
 
 **🎉 開発完了日**: 2026年2月17日
+
+## SEC-008: 管理画面・配信APIの認証
+
+配備前にRenderのEnvironmentで以下を設定してください。設定が不十分ならGoogle初期化・cron登録・HTTP待受けより前に起動を拒否します。
+
+- `INFORMATION_ADMIN_USERNAME`: 管理者名（英数字・`_ . @ -`のみ、1〜100文字）
+- `INFORMATION_ADMIN_PASSWORD`: 独立して生成した空白なし32〜512文字のランダムな値
+- `INFORMATION_PUBLIC_ORIGIN`: Renderに表示された実際のHTTPS origin（例のホストをそのまま採用せず実URLを確認、パスやqueryは付けない）
+
+`GET /health`だけを公開し、ダッシュボード・静的ファイル・全APIは管理者Basic認証が必要です。必ずHTTPSで使用し、ブラウザの認証画面へ管理者名とパスワードを入力します。共用資格情報の方式であり個別アカウント/MFA/SSOの導入は含みません。既存のUIは送信確認を保持し、変更リクエストに`X-Information-Request: 1`を付けます。外部Originからの変更は拒否します。
+
+外部の起動時収集ジョブなどが`POST /api/collect-on-startup`を呼ぶ場合、管理者認証と同ヘッダーが必要です。匿名の自動呼出しは切替後に拒否されます。定期収集cronは内部関数を直接呼ぶため変更不要です。`POST /api/send`は整数の`rowIndex`（2以上）と`confirmed: true`を要求します。配信の同時実行は409で拒否し、同一インスタンス内の重複送信を防ぎます。複数インスタンスや処理途中の障害に対する厳密な配信一意性は別途設計が必要です。
+
+`npm run test:security`はmockサービスとローカル一時HTTPサーバーのみを使います。通常の`npm test`は既存検索APIを呼ぶため、隔離検証では実行しません。実Google/Discordへの送信テストは別途承認・対象調整が必要です。配備後は認証なしAPIの401、外部Originの403、管理者UIと安全な読取りを確認し、実配信はテスト対象で別途検証します。
+
+切戻し時も旧匿名APIを公開しないよう、上流認証または公開停止を先に用意してください。既存Google/Discord秘密やDB構成は変更していません。

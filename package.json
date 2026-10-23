@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "node src/test-search.js"
+    "test": "node src/test-search.js",
+    "test:security": "node --test tests/*.test.js"
   },
   "keywords": [
     "vtuber",
